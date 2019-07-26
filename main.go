@@ -35,7 +35,11 @@ func main() {
 				return nil
 			}
 
-			fmt.Printf("%s: %s\n", shortPath, p.Name)
+			if p.Name == "main" {
+				fmt.Printf("%s: main\n", shortPath)
+			} else {
+				fmt.Printf("%s: %s (%s)\n", shortPath, p.Name, p.ImportPath)
+			}
 		}
 
 		return nil
