@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"go/build"
 	"log"
 	"os"
@@ -34,7 +35,7 @@ func main() {
 				return nil
 			}
 
-			log.Printf("%s: %s", shortPath, p.Name)
+			fmt.Printf("%s: %s\n", shortPath, p.Name)
 		}
 
 		return nil
