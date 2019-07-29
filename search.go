@@ -13,7 +13,7 @@ type searchPostProcess func()
 
 type search struct {
 	conf        config
-	impCache    []string
+	strsCache   []string
 	byImport    map[string][]string
 	action      searchAction
 	postProcess searchPostProcess
@@ -34,7 +34,7 @@ func newSearch(conf config) *search {
 			s.postProcess = s.postGroupByMatchedImports
 		} else {
 			s.action = s.printMatchedPkgs
-			s.impCache = make([]string, 0, 100)
+			s.strsCache = make([]string, 0, 100)
 		}
 	}
 
@@ -59,18 +59,18 @@ func (s *search) printPkg(path string, pkg *build.Package) {
 }
 
 func (s *search) printMatchedPkgs(path string, pkg *build.Package) {
-	imports := s.getImpFormCache()
-	defer s.updateImpCache(imports)
+	strs := s.getStrsFormCache()
+	defer s.updateStrsCache(strs)
 
 	for _, imp := range pkg.Imports {
 		if s.conf.impRegex.MatchString(imp) {
-			imports = append(imports, imp)
+			strs = append(strs, imp)
 		}
 	}
 
-	if len(imports) > 0 {
+	if len(strs) > 0 {
 		fmt.Println(sprintPkg(path, pkg, s.conf.dir))
-		for _, s := range imports {
+		for _, s := range strs {
 			fmt.Printf("\t%s\n", s)
 		}
 		fmt.Println()
@@ -109,12 +109,12 @@ func (s *search) postGroupByMatchedImports() {
 	}
 }
 
-func (s *search) getImpFormCache() []string {
-	return s.impCache
+func (s *search) getStrsFormCache() []string {
+	return s.strsCache
 }
 
-func (s *search) updateImpCache(imports []string) {
-	if cap(imports) > cap(s.impCache) {
-		s.impCache = imports[:0]
+func (s *search) updateStrsCache(strs []string) {
+	if cap(strs) > cap(s.strsCache) {
+		s.strsCache = strs[:0]
 	}
 }
