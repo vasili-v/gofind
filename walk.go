@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"go/build"
 	"log"
 	"os"
 	"path/filepath"
@@ -30,13 +28,4 @@ func walk(conf config) {
 	if s.postProcess != nil {
 		s.postProcess()
 	}
-}
-
-func sprintPkg(path string, pkg *build.Package, root string) string {
-	s := fmt.Sprintf("%s: %s", trimPath(path, root), pkg.Name)
-	if pkg.Name != execPackageName {
-		s += fmt.Sprintf(" (%s)", pkg.ImportPath)
-	}
-
-	return s
 }

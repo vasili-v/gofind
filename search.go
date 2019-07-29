@@ -6,15 +6,13 @@ import (
 	"log"
 )
 
-const execPackageName = "main"
-
-type searchAction func(path string, pkg *build.Package)
+type searchAction func(pkg goPkg)
 type searchPostProcess func()
 
 type search struct {
 	conf        config
 	strsCache   []string
-	byImport    map[string][]string
+	byImport    importGroups
 	action      searchAction
 	postProcess searchPostProcess
 }
@@ -29,7 +27,7 @@ func newSearch(conf config) *search {
 	if conf.impRegex != nil || conf.txtRegex != nil {
 		if conf.group && conf.txtRegex == nil {
 			s.action = s.groupByMatchedImports
-			s.byImport = map[string][]string{}
+			s.byImport = makeImportGroups()
 
 			s.postProcess = s.postGroupByMatchedImports
 		} else {
@@ -51,14 +49,14 @@ func (s *search) processDir(path string) {
 		return
 	}
 
-	s.action(path, p)
+	s.action(makeGoPkg(trimPath(path, s.conf.dir), p))
 }
 
-func (s *search) printPkg(path string, pkg *build.Package) {
-	fmt.Println(sprintPkg(path, pkg, s.conf.dir))
+func (s *search) printPkg(pkg goPkg) {
+	fmt.Println(pkg)
 }
 
-func (s *search) printMatchedPkgs(path string, pkg *build.Package) {
+func (s *search) printMatchedPkgs(pkg goPkg) {
 	strs := s.getStrsFormCache()
 	defer s.updateStrsCache(strs)
 
@@ -71,7 +69,7 @@ func (s *search) printMatchedPkgs(path string, pkg *build.Package) {
 	}
 
 	if len(strs) > 0 {
-		fmt.Println(sprintPkg(path, pkg, s.conf.dir))
+		fmt.Println(pkg)
 		for _, s := range strs {
 			fmt.Printf("\t%s\n", s)
 		}
@@ -79,8 +77,8 @@ func (s *search) printMatchedPkgs(path string, pkg *build.Package) {
 	}
 }
 
-func (s *search) matchImpRegex(pkg *build.Package, strs []string) []string {
-	for _, imp := range pkg.Imports {
+func (s *search) matchImpRegex(pkg goPkg, strs []string) []string {
+	for _, imp := range pkg.pkg.Imports {
 		if s.conf.impRegex.MatchString(imp) {
 			strs = append(strs, imp)
 		}
@@ -89,65 +87,52 @@ func (s *search) matchImpRegex(pkg *build.Package, strs []string) []string {
 	return strs
 }
 
-func (s *search) matchTxtRegex(pkg *build.Package, strs []string) []string {
-	for _, file := range pkg.GoFiles {
-		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+func (s *search) matchTxtRegex(pkg goPkg, strs []string) []string {
+	for _, file := range pkg.pkg.GoFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.pkg.Dir, file, strs)
 	}
 
-	for _, file := range pkg.CFiles {
-		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	for _, file := range pkg.pkg.CFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.pkg.Dir, file, strs)
 	}
 
-	for _, file := range pkg.CXXFiles {
-		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	for _, file := range pkg.pkg.CXXFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.pkg.Dir, file, strs)
 	}
 
-	for _, file := range pkg.MFiles {
-		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	for _, file := range pkg.pkg.MFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.pkg.Dir, file, strs)
 	}
 
-	for _, file := range pkg.HFiles {
-		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	for _, file := range pkg.pkg.HFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.pkg.Dir, file, strs)
 	}
 
-	for _, file := range pkg.FFiles {
-		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	for _, file := range pkg.pkg.FFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.pkg.Dir, file, strs)
 	}
 
-	for _, file := range pkg.SFiles {
-		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	for _, file := range pkg.pkg.SFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.pkg.Dir, file, strs)
 	}
 
-	for _, file := range pkg.SwigFiles {
-		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	for _, file := range pkg.pkg.SwigFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.pkg.Dir, file, strs)
 	}
 
-	for _, file := range pkg.SwigCXXFiles {
-		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	for _, file := range pkg.pkg.SwigCXXFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.pkg.Dir, file, strs)
 	}
 
 	return strs
 }
 
-func (s *search) groupByMatchedImports(path string, pkg *build.Package) {
-	var desc string
-	for _, imp := range pkg.Imports {
+func (s *search) groupByMatchedImports(pkg goPkg) {
+	for _, imp := range pkg.pkg.Imports {
 		if s.conf.impRegex.MatchString(imp) {
-			if desc == "" {
-				desc = sprintPkg(path, pkg, s.conf.dir)
-			}
-
-			s.byImport[imp] = appendStringToMapValue(s.byImport, imp, desc)
+			s.byImport[imp] = s.byImport.append(imp, pkg)
 		}
 	}
-}
-
-func appendStringToMapValue(m map[string][]string, k, s string) []string {
-	if v, ok := m[k]; ok {
-		return append(v, s)
-	}
-
-	return []string{s}
 }
 
 func (s *search) postGroupByMatchedImports() {
