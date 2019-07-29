@@ -7,7 +7,7 @@ import (
 )
 
 type config struct {
-	regex    *regexp.Regexp
+	impRegex *regexp.Regexp
 	group    bool
 	dir      string
 	exclDirs strSet
@@ -41,7 +41,7 @@ func (c *config) setRegex(imp string) {
 			log.Fatalf("invalid regular expression for import: %s", err)
 		}
 
-		c.regex = r
+		c.impRegex = r
 	}
 }
 

@@ -26,7 +26,7 @@ func newSearch(conf config) *search {
 
 	s.action = s.printPkg
 
-	if conf.regex != nil {
+	if conf.impRegex != nil {
 		if conf.group {
 			s.action = s.groupByMatchedImports
 			s.byImport = map[string][]string{}
@@ -63,7 +63,7 @@ func (s *search) printMatchedPkgs(path string, pkg *build.Package) {
 	defer s.updateImpCache(imports)
 
 	for _, imp := range pkg.Imports {
-		if s.conf.regex.MatchString(imp) {
+		if s.conf.impRegex.MatchString(imp) {
 			imports = append(imports, imp)
 		}
 	}
@@ -78,11 +78,14 @@ func (s *search) printMatchedPkgs(path string, pkg *build.Package) {
 }
 
 func (s *search) groupByMatchedImports(path string, pkg *build.Package) {
+	var desc string
 	for _, imp := range pkg.Imports {
-		if s.conf.regex.MatchString(imp) {
-			s.byImport[imp] = appendStringToMapValue(s.byImport,
-				imp, sprintPkg(path, pkg, s.conf.dir),
-			)
+		if s.conf.impRegex.MatchString(imp) {
+			if desc == "" {
+				desc = sprintPkg(path, pkg, s.conf.dir)
+			}
+
+			s.byImport[imp] = appendStringToMapValue(s.byImport, imp, desc)
 		}
 	}
 }
