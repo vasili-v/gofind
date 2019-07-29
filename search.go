@@ -26,8 +26,8 @@ func newSearch(conf config) *search {
 
 	s.action = s.printPkg
 
-	if conf.impRegex != nil {
-		if conf.group {
+	if conf.impRegex != nil || conf.txtRegex != nil {
+		if conf.group && conf.txtRegex == nil {
 			s.action = s.groupByMatchedImports
 			s.byImport = map[string][]string{}
 
@@ -62,10 +62,12 @@ func (s *search) printMatchedPkgs(path string, pkg *build.Package) {
 	strs := s.getStrsFormCache()
 	defer s.updateStrsCache(strs)
 
-	for _, imp := range pkg.Imports {
-		if s.conf.impRegex.MatchString(imp) {
-			strs = append(strs, imp)
-		}
+	if s.conf.impRegex != nil {
+		strs = s.matchImpRegex(pkg, strs)
+	}
+
+	if s.conf.txtRegex != nil {
+		strs = s.matchTxtRegex(pkg, strs)
 	}
 
 	if len(strs) > 0 {
@@ -75,6 +77,56 @@ func (s *search) printMatchedPkgs(path string, pkg *build.Package) {
 		}
 		fmt.Println()
 	}
+}
+
+func (s *search) matchImpRegex(pkg *build.Package, strs []string) []string {
+	for _, imp := range pkg.Imports {
+		if s.conf.impRegex.MatchString(imp) {
+			strs = append(strs, imp)
+		}
+	}
+
+	return strs
+}
+
+func (s *search) matchTxtRegex(pkg *build.Package, strs []string) []string {
+	for _, file := range pkg.GoFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	}
+
+	for _, file := range pkg.CFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	}
+
+	for _, file := range pkg.CXXFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	}
+
+	for _, file := range pkg.MFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	}
+
+	for _, file := range pkg.HFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	}
+
+	for _, file := range pkg.FFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	}
+
+	for _, file := range pkg.SFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	}
+
+	for _, file := range pkg.SwigFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	}
+
+	for _, file := range pkg.SwigCXXFiles {
+		strs = appendMatchedStrings(s.conf.txtRegex, pkg.Dir, file, strs)
+	}
+
+	return strs
 }
 
 func (s *search) groupByMatchedImports(path string, pkg *build.Package) {

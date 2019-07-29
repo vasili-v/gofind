@@ -8,6 +8,7 @@ import (
 
 type config struct {
 	impRegex *regexp.Regexp
+	txtRegex *regexp.Regexp
 	group    bool
 	dir      string
 	exclDirs strSet
@@ -20,6 +21,8 @@ func makeConfig() config {
 
 	imp := flag.String("import", "",
 		"search for import matching the regular expression")
+	txt := flag.String("text", "",
+		"search for source code matching the regular expression")
 	flag.BoolVar(&c.group, "group", false, "group search results")
 	flag.StringVar(&c.dir, "dir", "",
 		"directory to search in (default - current directory)")
@@ -28,13 +31,13 @@ func makeConfig() config {
 
 	flag.Parse()
 
-	c.setRegex(*imp)
+	c.setRegex(*imp, *txt)
 	c.validateDir()
 
 	return c
 }
 
-func (c *config) setRegex(imp string) {
+func (c *config) setRegex(imp, txt string) {
 	if imp != "" {
 		r, err := regexp.Compile(imp)
 		if err != nil {
@@ -42,6 +45,19 @@ func (c *config) setRegex(imp string) {
 		}
 
 		c.impRegex = r
+	}
+
+	if txt != "" {
+		r, err := regexp.Compile(txt)
+		if err != nil {
+			log.Fatalf("invalid regular expression for source code: %s", err)
+		}
+
+		c.txtRegex = r
+	}
+
+	if c.group && c.txtRegex != nil {
+		log.Println("warning: ignore group flag for search by sources")
 	}
 }
 
